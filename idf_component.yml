@@ -1,0 +1,28 @@
+name: "esp-idf-fireredvad"
+version: "1.0.0"
+description: "FireRedVAD DFSMN voice activity detection component for ESP32-P4 with ESPM v3 container support"
+url: "https://github.com/Strg-Alt-Entf-0x00/esp-idf-fireredvad"
+repository: "https://github.com/Strg-Alt-Entf-0x00/esp-idf-fireredvad.git"
+issues: "https://github.com/Strg-Alt-Entf-0x00/esp-idf-fireredvad/issues"
+license: "PolyForm-Noncommercial-1.0.0"
+targets:
+  - esp32p4
+
+tags:
+  - vad
+  - dfsmn
+  - audio
+  - dsp
+  - voice
+  - speech
+
+dependencies:
+  idf:
+    version: ">=6.0.2"
+
+  esp-idf-model-manager:
+    git: "https://github.com/Strg-Alt-Entf-0x00/esp-idf-model-manager.git"
+    version: "b3f3a07c398de12814e5673a38fdc423a64c1d17"
+
+  espressif/esp-dsp:
+    version: "^1.8.2"
