@@ -147,7 +147,12 @@ esp_err_t esp_firevad_load_espm_file(EspFirevadModel* model, const char* espm_pa
 esp_err_t esp_firevad_load_default_model(EspFirevadModel* model);
 
 /**
- * @brief Legacy loader for .frvd binary format.
+ * @brief Convenience loader for an in-memory ESPM v3 container buffer.
+ *
+ * @param data Complete ESPM model binary buffer.
+ * @param data_len Exact buffer size in bytes.
+ * @param model Output: populated model struct.
+ * @return 0 on success, negative error code otherwise.
  */
 int esp_firevad_load(const uint8_t* data, size_t data_len, EspFirevadModel* model);
 

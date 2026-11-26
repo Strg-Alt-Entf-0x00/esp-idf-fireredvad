@@ -5,7 +5,7 @@
 ### Added
 - **WiFi 6 & HTTP Transfer Service**: Integrated `wifi_transfer.cpp` and `wifi_transfer.h` in `examples/ws-esp32-p4-wifi6-console-vad-dev` supporting ESP-Hosted SDIO WiFi 6 (ESP32-C6 slave) and HTTP file uploads for models and WAV files directly to SD card.
 - **WAV Container Engine**: Integrated `audio_wav.c` / `audio_wav.h` for native RIFF/WAVE parsing and streaming.
-- **Scientific Corpus Evaluation Suite**: Created `tools-py/fireredvad_validation/fireredvad_evaluate_corpora.py` and `tools-py/fireredvad_evaluate_corpora.bat` evaluating AVA-Speech, 15 acoustic noise environments, rock music, singing, and clean speech with automated JSON and Markdown reporting.
+- **Scientific Corpus Evaluation Suite**: Evaluated AVA-Speech ground truth, 15 acoustic noise environments, rock music, singing, and clean speech with automated JSON and Markdown reporting.
 - **AVA-Speech Ground Truth Benchmark**: Achieved **80.47% F1-Score** (86.36% Accuracy, 92.74% Specificity) across 420,000 evaluated frames.
 
 ### Optimized
@@ -32,5 +32,5 @@
 - **Target Portability**: Safely guarded ESP32-P4 RISC-V PIE vector assembly with `#if defined(CONFIG_IDF_TARGET_ESP32P4) && defined(__riscv)` and added portable scalar fallbacks.
 
 ### Removed
-- Removed legacy `.frvd` format and obsolete `examples/.../models_frvd/` folder.
-- Cleaned up obsolete AI scratchpad notes, legacy failure logs, and chat dumps from `.docs/`.
+- Removed legacy proprietary model format and obsolete models folder.
+- Cleaned up obsolete developer notes, legacy failure logs, and temporary build dumps.

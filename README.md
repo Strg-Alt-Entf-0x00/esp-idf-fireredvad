@@ -33,24 +33,74 @@ dependencies:
 
 ## Scientific Benchmarks & Validation
 
-FireRedVAD Stream-VAD was benchmarked against the gold-standard AVA-Speech dataset and 15 acoustic noise stress environments using the `autonomous-dev-toolbox` corpus suite:
+**Evaluation Date**: 2026-11-24 11:50:17  
+**Evaluated Model**: FireRedVAD Stream-VAD (DFSMN, R=8, M=1, H=256, P=128, N1=20, S1=1)  
+**Container Format**: ESPM v3 (64-byte cacheline aligned, zero-copy model manager)  
+**Operating Threshold**: 0.60  
 
-### 1. AVA-Speech Ground Truth Benchmark (420,000 frames / 70 min audio)
+FireRedVAD was benchmarked against the gold-standard AVA-Speech corpus (420,000 frames / 70 minutes of real-world audio) and 15 acoustic noise stress environments:
+
+### 1. Executive Benchmark Summary
 
 | Metric | Measured Value | Standard Target | Status |
 | :--- | :--- | :--- | :--- |
-| **F1-Score** | **80.47%** | > 70.0% | **PASS** |
-| **Accuracy** | **86.36%** | > 75.0% | **PASS** |
-| **Precision** | **86.04%** | > 75.0% | **PASS** |
-| **Recall** | **75.58%** | > 65.0% | **PASS** |
-| **Specificity** | **92.74%** | > 70.0% | **PASS** |
-| **Real-Time Factor (RTF)** | **0.1011** | < 0.20 (5x Realtime) | **PASS** |
+| **AVA Speech F1-Score** | **80.47%** | > 70.0% | **PASS** |
+| **AVA Speech Accuracy** | **86.36%** | > 75.0% | **PASS** |
+| **AVA Speech Precision** | **86.04%** | > 75.0% | **PASS** |
+| **AVA Speech Recall** | **75.58%** | > 65.0% | **PASS** |
+| **AVA Speech Specificity** | **92.74%** | > 70.0% | **PASS** |
+| **Noise Rejection Rate** | **78.27%** | > 70.0% | **PASS** |
+| **Mean Inference Latency** | **1011.0 µs** (1.01 ms) | < 10,000 µs (10 ms) | **PASS** |
+| **Median (P50) Latency** | **938.1 µs** (0.94 ms) | < 5,000 µs | **PASS** |
+| **95th Percentile (P95)** | **1495.2 µs** (1.50 ms) | < 10,000 µs | **PASS** |
+| **Throughput** | **996.0 frames/sec** | > 100 fps | **PASS** |
+| **Real-Time Factor (RTF)** | **0.1011** (~10x Realtime) | < 0.20 (5x Realtime) | **PASS** |
+| **ESPM v3 Container Parity** | **9 / 9 Models Valid** | 100% | **PASS** |
 
-### 2. Acoustic Noise & Non-Speech Robustness
+### 2. AVA-Speech Ground Truth Breakdown (420,000 Frames / 70 Min Audio)
 
-- **Rock Music Rejection**: **0.00% False Alarm Rate** (Mean score 0.0690).
-- **Severe Acoustic Immunity**: **0.00% False Alarm Rate** under White Noise, Machine Room, Light Fan, Electrical Buzz, Server Fans, Mic Bumps, and Gym Ambience.
-- **Overall Noise Immunity**: **78.27% Rejection** across 15 real-world noise environments.
+- **Total Frames Evaluated**: 420,000 (4,200.0 seconds)
+- **True Positives (TP)**: 118,014
+- **False Positives (FP)**: 19,145
+- **True Negatives (TN)**: 244,710
+- **False Negatives (FN)**: 38,131
+
+| Clip File | Duration | F1-Score | Accuracy | Precision | Recall | Latency | RTF |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| `human_xO4ABy2iOQA_clip.wav` | 300.0s | 84.02% | 85.98% | 87.33% | 80.95% | 973.4 µs | 0.0973 |
+| `human_y7ncweROe9U_clip.wav` | 300.0s | 84.06% | 82.55% | 96.71% | 74.33% | 1087.1 µs | 0.1087 |
+| `human_-5KQ66BBWC4_clip.wav` | 900.0s | 76.58% | 90.47% | 76.01% | 77.16% | 939.7 µs | 0.0940 |
+| `human_-FaXLcSFjUI_clip.wav` | 900.0s | 63.91% | 88.19% | 61.53% | 66.49% | 953.6 µs | 0.0954 |
+| `human_-IELREHX_js_clip.wav` | 900.0s | 81.58% | 88.40% | 92.08% | 73.24% | 1170.2 µs | 0.1170 |
+| `human_053oq2xB3oU_clip.wav` | 900.0s | 83.67% | 79.79% | 90.71% | 77.65% | 942.2 µs | 0.0942 |
+
+### 3. Acoustic Noise Robustness (15 Environments)
+
+| Acoustic Environment | Duration | False Alarms | False Alarm Rate | Max Prob | Mean Prob |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `noise-constant-white.wav` | 5.0s | 0 | **0.00%** | 0.2754 | 0.0319 |
+| `noise-electrical-buzz.wav` | 5.0s | 0 | **0.00%** | 0.1503 | 0.0174 |
+| `noise-gym-ambience.wav` | 5.0s | 0 | **0.00%** | 0.3020 | 0.0706 |
+| `noise-light-fan.wav` | 5.0s | 0 | **0.00%** | 0.4288 | 0.0241 |
+| `noise-machine-room.wav` | 5.0s | 0 | **0.00%** | 0.3157 | 0.0375 |
+| `noise-mic-bumps.wav` | 5.0s | 0 | **0.00%** | 0.4640 | 0.0372 |
+| `noise-server-fans.wav` | 5.0s | 0 | **0.00%** | 0.4937 | 0.0582 |
+| `noise-mic-static.wav` | 5.0s | 3 | **0.60%** | 0.7954 | 0.0445 |
+| `noise-clock-tick.wav` | 5.0s | 5 | **1.00%** | 0.8219 | 0.0230 |
+| `noise-laundry-machine.wav` | 5.0s | 8 | **1.60%** | 0.8612 | 0.0725 |
+| `noise-cafeteria.wav` | 5.0s | 137 | **27.40%** | 0.9839 | 0.4215 |
+| `noise-office-ambience.wav` | 5.0s | 190 | **38.00%** | 0.9549 | 0.4334 |
+| `noise-pizzeria.wav` | 5.0s | 302 | **60.40%** | 0.9929 | 0.6282 |
+| `noise-babble-small-room.wav` | 5.0s | 489 | **97.80%** | 0.9971 | 0.9374 |
+| `noise-babble-english.wav` | 5.0s | 496 | **99.20%** | 0.9975 | 0.9666 |
+
+### 4. Non-Speech & Acoustic Rejection
+
+| Category | Audio Clip | Duration | False Alarm Rate | Mean Probability |
+| :--- | :--- | :--- | :--- | :--- |
+| **Rock Music** | `music-rock.wav` | 8.8s | **0.00%** | 0.0690 |
+| **Nature / Birds** | `negative-birds.wav` | 15.0s | **3.53%** | 0.1280 |
+| **Singing / Vocal** | `singing-vocal.wav` | 14.1s | **59.07%** | 0.5930 |
 
 ## Quick Start
 
@@ -113,12 +163,6 @@ tools-py\fireredvad_download_models_py.bat
 tools-py\fireredvad_convert_models.bat
 ```
 
-To run scientific corpus validation against AVA-Speech and noise corpora:
-
-```cmd
-tools-py\fireredvad_evaluate_corpora.bat
-```
-
 To verify the integrity and CRC compliance of all exported ESPM v3 models:
 
 ```cmd
@@ -128,10 +172,12 @@ python tools-py\fireredvad_models_converter\fireredvad_verify_espm.py
 ## Example Application
 
 A full-featured console application is available under `examples/ws-esp32-p4-wifi6-console-vad-dev`:
-- Real-time microphone capture via ES8311 I2S codec
-- Background noise auto-calibration
-- WiFi 6 transfer server for uploading audio and `.espm` models to `/sd/`
-- Interactive console with commands: `threshold`, `test_wav`, `load_model`, `record`, `benchmark`, `wifi`
+- Real-time microphone capture via INMP441 (digital I2S, 23.2 dB SNR) or onboard ES8311 analog codec
+- Background noise auto-calibration and pre-VAD energy gating
+- Embedded default ROM model support (`vad_model_load default`) requiring no SD card or network setup
+- ESP-Hosted SDIO WiFi 6 transfer server for uploading audio and `.espm` models directly to `/sd/`
+- Dual-core cascade architecture (`vad_cascade_load`) running fast gatekeeper on Core 0 and offline classifier on Core 1
+- Interactive console with commands: `vad_model_load`, `vad_infer_mic`, `vad_infer_wav`, `vad_cascade_load`, `vad_metrics`, `benchmark`, `record_mic`, `agc_enable`, `mic_select`, `wifi`
 
 Build the example with:
 ```cmd

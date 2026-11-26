@@ -26,8 +26,6 @@ static const char* TAG = "VAD_RUNNER";
 
 static EspFirevadModel g_model = {};
 static EspFirevadModel g_offline_model = {};
-static uint8_t* g_model_buffer = NULL;
-static uint8_t* g_offline_model_buffer = NULL;
 static bool g_model_loaded = false;
 static bool g_cascade_active = false;
 static float g_frame_features[FEATURES_PER_FRAME] = {0.0f};
@@ -50,56 +48,34 @@ bool vad_runner_is_causal(void) {
     return g_model.arch.N2 == 0;
 }
 
-int vad_runner_load_model(const char* filename) {
+static int internal_load_model(const char* filename, EspFirevadModel* model_ptr) {
     char path[MAX_FILE_PATH];
-    snprintf(path, sizeof(path), "%s/%s", FS_MOUNT_POINT, filename);
+    if (strncmp(filename, FS_MOUNT_POINT, strlen(FS_MOUNT_POINT)) == 0) {
+        snprintf(path, sizeof(path), "%s", filename);
+    } else if (filename[0] == '/') {
+        snprintf(path, sizeof(path), "%s%s", FS_MOUNT_POINT, filename);
+    } else {
+        snprintf(path, sizeof(path), "%s/%s", FS_MOUNT_POINT, filename);
+    }
     
-    FILE* f = fopen(path, "rb");
-    if (!f) {
-        ESP_LOGE(TAG, "Failed to open '%s'", path);
+    ESP_LOGI(TAG, "Loading ESPM model from '%s'...", path);
+    esp_err_t ret = esp_firevad_load_espm_file(model_ptr, path);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to load ESPM model from '%s' (err: %s)", path, esp_err_to_name(ret));
         return 1;
     }
     
-    fseek(f, 0, SEEK_END);
-    size_t file_size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    
-    ESP_LOGI(TAG, "Loading model (%zu KB)...", file_size / 1024);
-    
+    esp_firevad_reset(model_ptr);
+    return 0;
+}
+
+int vad_runner_load_model(const char* filename) {
     vad_runner_free_model();
     
-    g_model_buffer = (uint8_t*)heap_caps_malloc(file_size, MALLOC_CAP_SPIRAM);
-    if (!g_model_buffer) {
-        ESP_LOGE(TAG, "Failed to allocate %zu bytes in PSRAM", file_size);
-        fclose(f);
+    if (internal_load_model(filename, &g_model) != 0) {
         return 1;
     }
     
-    size_t bytes_read = 0;
-    while (bytes_read < file_size) {
-        size_t remaining = file_size - bytes_read;
-        size_t chunk_size = remaining > 64 * 1024 ? 64 * 1024 : remaining;
-        size_t chunk_read = fread(g_model_buffer + bytes_read, 1, chunk_size, f);
-        if (chunk_read == 0) break;
-        bytes_read += chunk_read;
-    }
-    fclose(f);
-    
-    if (bytes_read != file_size) {
-        ESP_LOGE(TAG, "Failed to read complete file (%zu/%zu bytes)", bytes_read, file_size);
-        heap_caps_free(g_model_buffer);
-        g_model_buffer = NULL;
-        return 1;
-    }
-    
-    int ret = esp_firevad_load(g_model_buffer, file_size, &g_model);
-    if (ret != 0) {
-        ESP_LOGE(TAG, "Failed to parse FireVAD model (error: %d)", ret);
-        vad_runner_free_model();
-        return 1;
-    }
-    
-    esp_firevad_reset(&g_model);
     g_model_loaded = true;
     metrics_reset();
 
@@ -123,6 +99,32 @@ int vad_runner_load_model(const char* filename) {
     return 0;
 }
 
+int vad_runner_load_default_model(void) {
+    vad_runner_free_model();
+    
+    ESP_LOGI(TAG, "Loading embedded ROM default model (Stream-VAD INT8-CH)...");
+    esp_err_t ret = esp_firevad_load_default_model(&g_model);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to load default ROM model (err: %s)", esp_err_to_name(ret));
+        return 1;
+    }
+    
+    esp_firevad_reset(&g_model);
+    g_model_loaded = true;
+    metrics_reset();
+
+#if ENABLE_DUAL_CORE
+    if (dual_core_vad_init(&g_dual_core_vad, &g_model, nullptr) == ESP_OK) {
+        ESP_LOGI(TAG, "Dual-Core VAD initialized successfully");
+    } else {
+        ESP_LOGW(TAG, "Failed to initialize Dual-Core VAD");
+    }
+#endif
+
+    ESP_LOGI(TAG, "Model family: stream-vad (built-in default ROM model)");
+    return 0;
+}
+
 void vad_runner_free_model(void) {
     if (g_model_loaded) {
 #if ENABLE_DUAL_CORE
@@ -133,16 +135,8 @@ void vad_runner_free_model(void) {
         dual_core_vad_deinit(&g_dual_core_vad);
 #endif
         esp_firevad_free(&g_model);
-        if (g_model_buffer) {
-            heap_caps_free(g_model_buffer);
-            g_model_buffer = NULL;
-        }
         if (g_cascade_active) {
             esp_firevad_free(&g_offline_model);
-            if (g_offline_model_buffer) {
-                heap_caps_free(g_offline_model_buffer);
-                g_offline_model_buffer = NULL;
-            }
             g_cascade_active = false;
         }
         g_model_loaded = false;
@@ -153,67 +147,16 @@ bool vad_runner_is_cascade_active(void) {
     return g_cascade_active;
 }
 
-// Helper to load a single model into a specific buffer and model pointer
-static int internal_load_model(const char* filename, uint8_t** buffer_ptr, EspFirevadModel* model_ptr) {
-    char path[MAX_FILE_PATH];
-    snprintf(path, sizeof(path), "%s/%s", FS_MOUNT_POINT, filename);
-    
-    FILE* f = fopen(path, "rb");
-    if (!f) {
-        ESP_LOGE(TAG, "Failed to open '%s'", path);
-        return 1;
-    }
-    
-    fseek(f, 0, SEEK_END);
-    size_t file_size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    
-    *buffer_ptr = (uint8_t*)heap_caps_malloc(file_size, MALLOC_CAP_SPIRAM);
-    if (!*buffer_ptr) {
-        ESP_LOGE(TAG, "Failed to allocate %zu bytes in PSRAM", file_size);
-        fclose(f);
-        return 1;
-    }
-    
-    size_t bytes_read = 0;
-    while (bytes_read < file_size) {
-        size_t remaining = file_size - bytes_read;
-        size_t chunk_size = remaining > 64 * 1024 ? 64 * 1024 : remaining;
-        size_t chunk_read = fread(*buffer_ptr + bytes_read, 1, chunk_size, f);
-        if (chunk_read == 0) break;
-        bytes_read += chunk_read;
-    }
-    fclose(f);
-    
-    if (bytes_read != file_size) {
-        ESP_LOGE(TAG, "Failed to read complete file (%zu/%zu bytes)", bytes_read, file_size);
-        heap_caps_free(*buffer_ptr);
-        *buffer_ptr = NULL;
-        return 1;
-    }
-    
-    int ret = esp_firevad_load(*buffer_ptr, file_size, model_ptr);
-    if (ret != 0) {
-        ESP_LOGE(TAG, "Failed to parse FireVAD model (error: %d)", ret);
-        heap_caps_free(*buffer_ptr);
-        *buffer_ptr = NULL;
-        return 1;
-    }
-    
-    esp_firevad_reset(model_ptr);
-    return 0;
-}
-
 int vad_runner_load_cascade(const char* stream_filename, const char* offline_filename) {
     vad_runner_free_model();
     
     ESP_LOGI(TAG, "Loading cascade models...");
     
-    if (internal_load_model(stream_filename, &g_model_buffer, &g_model) != 0) {
+    if (internal_load_model(stream_filename, &g_model) != 0) {
         return 1;
     }
     
-    if (internal_load_model(offline_filename, &g_offline_model_buffer, &g_offline_model) != 0) {
+    if (internal_load_model(offline_filename, &g_offline_model) != 0) {
         vad_runner_free_model();
         return 1;
     }

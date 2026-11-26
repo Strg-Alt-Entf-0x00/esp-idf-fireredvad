@@ -19,12 +19,19 @@ bool vad_runner_is_model_loaded(void);
 bool vad_runner_is_causal(void);
 
 /**
- * @brief Load a model from the SPIFFS partition
+ * @brief Load an ESPM model from the SD card or VFS filesystem
  * 
- * @param filename Name of the .espm file
+ * @param filename Relative path (e.g. models/firered_stream-vad_int8_ch.espm) or full path
  * @return 0 on success, non-zero on error
  */
 int vad_runner_load_model(const char* filename);
+
+/**
+ * @brief Load the embedded ROM default model (Stream-VAD INT8-CH)
+ * 
+ * @return 0 on success, non-zero on error
+ */
+int vad_runner_load_default_model(void);
 
 /**
  * @brief Load two models for Cascaded VAD

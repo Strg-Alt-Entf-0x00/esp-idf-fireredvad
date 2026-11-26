@@ -72,10 +72,26 @@ static void write_wav_header(FILE* f, uint32_t data_size) {
 
 static int cmd_vad_model_load(int argc, char **argv) {
     if (argc != 2) {
-        printf("Usage: vad_model_load <filename.espm>\n");
+        printf("Usage: vad_model_load <filename.espm | default>\n");
         return 1;
     }
+    if (strcmp(argv[1], "default") == 0 || strcmp(argv[1], "rom") == 0) {
+        return vad_runner_load_default_model();
+    }
     return vad_runner_load_model(argv[1]);
+}
+
+static int cmd_vad_cascade_load(int argc, char **argv) {
+    if (argc != 3) {
+        printf("Usage: vad_cascade_load <stream.espm> <offline.espm>\n");
+        return 1;
+    }
+    return vad_runner_load_cascade(argv[1], argv[2]);
+}
+
+static int cmd_vad_metrics(int argc, char **argv) {
+    metrics_print_summary();
+    return 0;
 }
 
 static int cmd_vad_model_info(int argc, char **argv) {
@@ -772,11 +788,14 @@ static int cmd_benchmark(int argc, char **argv) {
 // ---------------------------------------------------------
 
 static int cmd_guide(int argc, char **argv) {
-    printf("\n--- Quick Start Workflow ---\n");
-    printf("1. ls [path]              - Navigate the SD card and find files\n");
-    printf("2. vad_model_load <model> - Load a VAD model from the list\n");
-    printf("5. record_mic test.wav 5  - Record 5s from mic to test hardware\n");
-    printf("7. vad_metrics            - View latency metrics\n\n");
+    printf("\n--- FireVAD Quick Start Workflow ---\n");
+    printf("1. vad_model_load default   - Load the built-in ROM model (no SD card needed)\n");
+    printf("   OR: vad_model_load <m>   - Load model from SD card (e.g. models/firered_stream-vad_int8_ch.espm)\n");
+    printf("2. mic_select <mic>         - Select mic source: 'inmp441' (digital) or 'es8311' (analog)\n");
+    printf("3. vad_infer_mic [seconds]  - Start live microphone VAD inference (real-time display)\n");
+    printf("4. vad_metrics              - View latency, CPU cycles, and timing metrics\n");
+    printf("5. wifi status              - Check WiFi 6 & HTTP model/audio transfer server status\n");
+    printf("6. ls [path]                - List files on the SD card (/sd/)\n\n");
     return 0;
 }
 
@@ -811,7 +830,9 @@ static int cmd_vad_test_pie(int argc, char **argv) {
 void cmd_vad_cli_register(void) {
     esp_console_register_help_command();
     
-    esp_console_cmd_t cmd_load = {}; cmd_load.command = "vad_model_load"; cmd_load.help = "Load model"; cmd_load.hint = "<filename.espm>"; cmd_load.func = &cmd_vad_model_load;
+    esp_console_cmd_t cmd_load = {}; cmd_load.command = "vad_model_load"; cmd_load.help = "Load model (or 'default' for ROM model)"; cmd_load.hint = "<filename.espm | default>"; cmd_load.func = &cmd_vad_model_load;
+    esp_console_cmd_t cmd_cas = {}; cmd_cas.command = "vad_cascade_load"; cmd_cas.help = "Load Dual-Core Cascade models"; cmd_cas.hint = "<stream.espm> <offline.espm>"; cmd_cas.func = &cmd_vad_cascade_load;
+    esp_console_cmd_t cmd_met = {}; cmd_met.command = "vad_metrics"; cmd_met.help = "Show VAD latency & cycle metrics"; cmd_met.func = &cmd_vad_metrics;
     esp_console_cmd_t cmd_info = {}; cmd_info.command = "vad_model_info"; cmd_info.help = "Model info"; cmd_info.func = &cmd_vad_model_info;
 
     esp_console_cmd_t cmd_thr = {}; cmd_thr.command = "vad_threshold"; cmd_thr.help = "Set threshold"; cmd_thr.hint = "<0.0-1.0>"; cmd_thr.func = &cmd_vad_threshold;
@@ -842,12 +863,16 @@ void cmd_vad_cli_register(void) {
     esp_console_cmd_t cmd_tpie = {}; cmd_tpie.command = "vad_test_pie"; cmd_tpie.help = "Test PIE assembly"; cmd_tpie.func = &cmd_vad_test_pie;
     esp_console_cmd_t cmd_ls = {}; cmd_ls.command = "ls"; cmd_ls.help = "Admin: List directory contents"; cmd_ls.hint = "[path]"; cmd_ls.func = &cmd_fs_ls;
     ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_ls));
+    esp_console_cmd_t cmd_fs_ls_alias = {}; cmd_fs_ls_alias.command = "fs_ls"; cmd_fs_ls_alias.help = "List directory contents (/sd/)"; cmd_fs_ls_alias.hint = "[path]"; cmd_fs_ls_alias.func = &cmd_fs_ls;
+    ESP_ERROR_CHECK(esp_console_cmd_register(&cmd_fs_ls_alias));
     esp_console_cmd_register(&cmd_tpie);
     
     esp_console_cmd_t cmd_bm = {}; cmd_bm.command = "benchmark"; cmd_bm.help = "Benchmark CPU/RAM usage of current model"; cmd_bm.hint = "[num_frames]"; cmd_bm.func = &cmd_benchmark;
     esp_console_cmd_register(&cmd_bm);
     
     esp_console_cmd_register(&cmd_load);
+    esp_console_cmd_register(&cmd_cas);
+    esp_console_cmd_register(&cmd_met);
     esp_console_cmd_register(&cmd_info);
     esp_console_cmd_register(&cmd_thr);
     esp_console_cmd_register(&cmd_gn);
